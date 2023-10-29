@@ -1,0 +1,12 @@
+[Cartridge]
+Name=Printer
+Description=Thermal Printer
+
+[Service socat]
+Scope=System
+Unit=printer-cartridge-socat
+
+[Service printer]
+Scope=System
+Unit=printer-cartridge
+

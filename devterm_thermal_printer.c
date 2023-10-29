@@ -23,6 +23,8 @@
 #include "ttf_Px437_PS2thin1_8x16.h"
 #include "ttf_Px437_PS2thin2_8x16.h"
 
+#include "pincfg.h"
+#include "hal_gpio.h"
 #include "config.h"
 #include "printer.h"
 #include "utils.h"
@@ -53,10 +55,10 @@ CONFIG g_config;
 TimeRec battery_chk_tm;
 
 void DISABLE_VH() {
-  digitalWrite(PA_PIN, LOW);
-  digitalWrite(PNA_PIN, LOW);
-  digitalWrite(PB_PIN, LOW);
-  digitalWrite(PNB_PIN, LOW);
+  pin_set(PIN_PA, 0);
+  pin_set(PIN_PNA, 0);
+  pin_set(PIN_PB, 0);
+  pin_set(PIN_PNB, 0);
 }
 
 int printf_out(CONFIG *cfg, char *format, ...) {
@@ -951,18 +953,43 @@ void die(const char* msg, ...) {
   va_end(argp);
 }
 
+void pin_init(void)
+{
+	int rc = 0;
+	pin_map(PIN_LATCH, PIN_IO34);
+	pin_map(PIN_PEM, PIN_YIO7);
+	pin_map(PIN_STB, PIN_IO35);
+	pin_map(PIN_PA, PIN_IO28);
+	pin_map(PIN_PNA, PIN_IO29);
+	pin_map(PIN_PB, PIN_IO30);
+	pin_map(PIN_PNB, PIN_IO31);
+	
+	rc = pin_config_output(PIN_LATCH, 0);
+	if (rc != 0) die("Could not configure PIN_LATCH");
+	rc = pin_config_input(PIN_PEM);
+	if (rc != 0) die("Could not configure PIN_PEM");
+	rc = pin_config_output(PIN_STB, 0);
+	if (rc != 0) die("Could not configure PIN_STB");
+	rc = pin_config_output(PIN_PA, 0);
+	if (rc != 0) die("Could not configure PIN_PA");
+	rc = pin_config_output(PIN_PNA, 0);
+	if (rc != 0) die("Could not configure PIN_PNA");
+	rc = pin_config_output(PIN_PB, 0);
+	if (rc != 0) die("Could not configure PIN_PB");
+	rc = pin_config_output(PIN_PNB, 0);
+	if (rc != 0) die("Could not configure PIN_PNB");
+}
+
 void setup() {
 
-  if (0 != wiringPiSetupGpio()) {
+  /*if (0 != wiringPiSetupGpio()) {
     die("Failed to setup wiringpi\n");
-  }
-  if (1 != mcp23008Setup(MCP23008_PINBASE, MCP23008_ADDR)) {
-    die("Failed to setup mcp23008\n");
-  }
+  }*/
 
-
+  pin_init();
   header_init();
   header_init1();
+  
 
   clear_printer_buffer();
 

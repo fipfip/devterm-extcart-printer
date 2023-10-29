@@ -146,13 +146,13 @@
 #define MOTOR_DISABLE1
 #define MOTOR_DISABLE2
 
-#define ENABLE_VH digitalWrite(VH_PIN, HIGH)
-#define READ_VH digitalRead(VH_PIN)
+#define ENABLE_VH (void)0
+#define READ_VH 0
 
-#define LATCH_ENABLE digitalWrite(LATCH_PIN, LOW)
-#define LATCH_DISABLE digitalWrite(LATCH_PIN, HIGH)
+#define LATCH_ENABLE pin_set(PIN_LATCH, 0)
+#define LATCH_DISABLE pin_set(PIN_LATCH, 1)
 
-#define ASK4PAPER digitalRead(PEM_PIN)
+#define ASK4PAPER pin_get(PIN_PEM)
 
 #define ERROR_FEED_PITCH ((uint8_t)0x01)
 #define IS_PAPER 0x00

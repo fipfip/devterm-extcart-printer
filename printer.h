@@ -27,7 +27,7 @@ void print_dots_8bit_split(CONFIG *cfg, uint8_t *Array, uint8_t characters);
 void print_dots_8bit(CONFIG *cfg, uint8_t *Array, uint8_t characters,
                      uint8_t feed_num);
 
-uint16_t read_adc(char *);
+uint16_t read_adc(const char *i2cbus);
 uint16_t temperature();
 int glob_file(char *);
 uint16_t get_serial_cache_font_width(CONFIG *);

@@ -4,8 +4,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>+
+#include <linux/i2c.h>
+#include <linux/i2c-dev.h>
+#include <sys/ioctl.h>
+#include <fcntl.h>
 
-#include <wiringPi.h>
+//#include <wiringPi.h>
 #include <wiringPiSPI.h>
 
 #include "config.h"
@@ -13,6 +18,8 @@
 #include "utils.h"
 
 #include "printer.h"
+
+#include "hal_gpio.h"
 
 extern FONT current_font;
 extern SerialCache ser_cache;
@@ -62,14 +69,14 @@ uint8_t IsPaper() {
     ENABLE_PEM;
     // XXX disabled
     status = IS_PAPER;
-    /*if (ASK4PAPER == LOW) // * LOW is what we want***/
-    /*{*/
-      /*status = IS_PAPER;*/
-    /*} else {*/
-      /*status = NO_PAPER;*/
-      /*PRINTF("Error:NO PAPER\n");*/
-      /*DISABLE_VH();*/
-    /*}*/
+    if (ASK4PAPER == 0) // * LOW is what we want***/
+    {
+      status = IS_PAPER;
+    } else {
+      status = NO_PAPER;
+      PRINTF("Error:NO PAPER\n");
+      DISABLE_VH();
+    }
     DISABLE_PEM;
 
     if (printer_temp_check > 20) {
@@ -102,24 +109,26 @@ uint8_t header_init() {
   uint8_t pin[] = {THERMISTORPIN};
 
   uint8_t x;
-  pinMode(LATCH_PIN, OUTPUT);
+  //pinMode(LATCH_PIN, OUTPUT);
 
+  
   for (x = 0; x < STB_NUMBER; x++) {
-    pinMode(STBx[x], OUTPUT);
-    digitalWrite(STBx[x], LOW);
+    //pinMode(STBx[x], OUTPUT);
+    pin_set(PIN_STB, 0);
+    //digitalWrite(STBx[x], LOW);
   }
-
+  
   LATCH_DISABLE;
 
-  pinMode(VH_PIN, OUTPUT);
-  digitalWrite(VH_PIN, LOW);
-
-  pinMode(PEM_PIN, INPUT);
+  //pinMode(VH_PIN, OUTPUT);
+  //digitalWrite(VH_PIN, LOW);
+  
+  //pinMode(PEM_PIN, INPUT);
   // pinMode(PEM_CTL_PIN,OUTPUT);
 
   // adc.setChannels(pin, 1); //this is actually the pin you want to measure
 
-  pinMode(THERMISTORPIN, INPUT); // 数字io没有 模拟接口。adc 读温度暂时不搞
+  //pinMode(THERMISTORPIN, INPUT); // 数字io没有 模拟接口。adc 读温度暂时不搞
 
   /*
   //SPI.begin(); //Initialize the SPI_1 port.
@@ -152,12 +161,12 @@ uint8_t header_init() {
 uint8_t current_pos = 1;
 
 uint8_t header_init1() {
-
+/*
   pinMode(PA_PIN, OUTPUT);
   pinMode(PNA_PIN, OUTPUT);
   pinMode(PB_PIN, OUTPUT);
   pinMode(PNB_PIN, OUTPUT);
-
+*/
   as = 0;
 
   return ASK4PAPER;
@@ -192,34 +201,34 @@ void motor_stepper_pos2(uint8_t position) // forward
   delayMicroseconds(acc_time[acc_time_idx]);
   switch (position) {
   case 0:
-    digitalWrite(PA_PIN, LOW);
-    digitalWrite(PNA_PIN, LOW);
-    digitalWrite(PB_PIN, LOW);
-    digitalWrite(PNB_PIN, LOW);
+    pin_set(PIN_PA, 0);
+    pin_set(PIN_PNA, 0);
+    pin_set(PIN_PB, 0);
+    pin_set(PIN_PNB, 0);
     break;
   case 1:
-    digitalWrite(PA_PIN, HIGH);
-    digitalWrite(PNA_PIN, LOW);
-    digitalWrite(PB_PIN, LOW);
-    digitalWrite(PNB_PIN, HIGH);
+	pin_set(PIN_PA, 1);
+    pin_set(PIN_PNA, 0);
+    pin_set(PIN_PB, 0);
+    pin_set(PIN_PNB, 1);
     break;
   case 2:
-    digitalWrite(PA_PIN, HIGH);
-    digitalWrite(PNA_PIN, LOW);
-    digitalWrite(PB_PIN, HIGH);
-    digitalWrite(PNB_PIN, LOW);
+	pin_set(PIN_PA, 1);
+    pin_set(PIN_PNA, 0);
+    pin_set(PIN_PB, 1);
+    pin_set(PIN_PNB, 0);
     break;
   case 3:
-    digitalWrite(PA_PIN, LOW);
-    digitalWrite(PNA_PIN, HIGH);
-    digitalWrite(PB_PIN, HIGH);
-    digitalWrite(PNB_PIN, LOW);
+	pin_set(PIN_PA, 0);
+    pin_set(PIN_PNA, 1);
+    pin_set(PIN_PB, 1);
+    pin_set(PIN_PNB, 0);
     break;
   case 4:
-    digitalWrite(PA_PIN, LOW);
-    digitalWrite(PNA_PIN, HIGH);
-    digitalWrite(PB_PIN, LOW);
-    digitalWrite(PNB_PIN, HIGH);
+	pin_set(PIN_PA, 0);
+    pin_set(PIN_PNA, 1);
+    pin_set(PIN_PB, 0);
+    pin_set(PIN_PNB, 1);
     break;
   }
 }
@@ -343,10 +352,9 @@ void print_dots_8bit(CONFIG *cfg, uint8_t *Array, uint8_t characters,
   while (y < STB_NUMBER) {
 
     while (i < 10) {
-
-      digitalWrite(STBx[y], HIGH);
+      pin_set(PIN_STB, 1);
       delayus(HEAT_TIME + cfg->density * 46);
-      digitalWrite(STBx[y], LOW);
+      pin_set(PIN_STB, 0);
       delayus(14);
       i++;
     }
@@ -360,6 +368,7 @@ void print_dots_8bit(CONFIG *cfg, uint8_t *Array, uint8_t characters,
   return;
 }
 
+/*
 uint16_t read_adc(char *adc_file) {
   long ret;
   char c[16];
@@ -377,6 +386,32 @@ uint16_t read_adc(char *adc_file) {
   // printf("the number ret %d\n",ret);
 
   return (uint16_t)ret;
+}*/
+
+uint16_t read_adc(const char *i2cbus) {
+	uint8_t addr = 0x4D;
+	int file, rc;
+	uint16_t adc_value = 0;
+	uint8_t tmp;
+	
+	file = open(i2cbus, O_RDWR);
+	if (file < 0)
+		err(errno, "Tried to open '%s'", i2cbus); 
+
+	rc = ioctl(file, I2C_SLAVE, addr);
+	if (rc < 0)
+		err(errno, "Tried to set device address '0x%02x'", addr);
+
+	rc = read(file, &adc_value, sizeof(adc_value));
+	/*if (rc < 0)
+		err(errno, "Tried reading from ADC");
+	*/
+	
+	tmp = adc_value & 0xFF;
+	adc_value = adc_value >> 8;
+	adc_value |= (tmp << 8);
+	printf("ADC %X\n", adc_value);
+	return adc_value;
 }
 
 uint16_t temperature() {
@@ -388,7 +423,8 @@ uint16_t temperature() {
 
   while (Sample <= NumSamples) {
     // ADCSamples += analogRead(THERMISTORPIN); //stm32
-    ADCSamples += read_adc(adc_file_path);
+    // ADCSamples += read_adc(adc_file_path);
+    ADCSamples += read_adc("/dev/i2c-2");
     Sample++;
   }
   // Thermistor Resistance at x Kelvin

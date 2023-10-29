@@ -1,0 +1,15 @@
+[Unit]
+Description=devterm printer cartridge main process
+After=printer-cartridge-socat
+
+[Service]
+Type=simple
+EnvironmentFile=/usr/local/etc/printer-cartridge
+StandardOutput=file:/tmp/devterm_printer_cartridge.log
+StandardError=file:/tmp/devterm_printer_cartridge.err.log
+ExecStart=/usr/local/bin/devterm_printer_cartridge.elf
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
